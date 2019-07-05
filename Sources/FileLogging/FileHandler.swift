@@ -53,14 +53,10 @@ private let _formatter: DateFormatter = {
 }()
 
 public protocol FileHandler: LogHandler {
-    // swiftlint:disable identifier_name
-    /// An opened file that can be written to
-    var _stream: FileStream! { get }
     /// The encoding to use when converting a String log message to bytes which can be written to the file
     var encoding: String.Encoding { get set }
-    // swiftlint:enable identifier_name
 
-    var label: String { get set }
+    var label: String { get }
 }
 
 public extension FileHandler {
@@ -68,10 +64,10 @@ public extension FileHandler {
         return metadata.isEmpty ? metadata.map { "\($0)=\($1)" }.joined(separator: " ") : nil
     }
 
-    func log(level: Logger.Level,
-             message: Logger.Message,
-             metadata: Logger.Metadata?,
-             file: String, function: String, line: UInt) {
+    internal func buildMessage(level: Logger.Level,
+                               message: Logger.Message,
+                               metadata: Logger.Metadata?,
+                               file: String, function: String, line: UInt) -> Data {
         let prettyMetadata = metadata?.isEmpty ?? true
             ? prettify(self.metadata)
             : prettify(self.metadata.merging(metadata!, uniquingKeysWith: { _, new in new }))
@@ -86,15 +82,19 @@ public extension FileHandler {
             fatalError("Message '\(message)' contains characters not convertible using \(encoding) encoding")
         }
 
+        return data
+    }
+
+    internal func writeOrQueueMessage(to stream: FileStream, _ data: Data) {
         let wasEmpty = loggingBuffers.isEmpty
-        if !loggingBuffers.keys.contains(_stream) {
+        if !loggingBuffers.keys.contains(stream) {
             do {
-                try _stream.write(data)
+                try stream.write(data)
             } catch {
-                loggingBuffers[_stream] = [data]
+                loggingBuffers[stream] = [data]
             }
         } else {
-            loggingBuffers[_stream]!.append(data)
+            loggingBuffers[stream]!.append(data)
         }
 
         // If the buffers were empty, but aren't any more then begin flushing them every 60 seconds
@@ -106,5 +106,24 @@ public extension FileHandler {
     subscript(metadataKey metadataKey: String) -> Logger.Metadata.Value? {
         get { return metadata[metadataKey] }
         set { metadata[metadataKey] = newValue }
+    }
+}
+
+public protocol ConstantStreamFileHandler: FileHandler {
+    /// An opened file that can be written to
+    var stream: FileStream { get }
+}
+
+public extension ConstantStreamFileHandler {
+    func log(level: Logger.Level,
+             message: Logger.Message,
+             metadata: Logger.Metadata?,
+             file: String, function: String, line: UInt) {
+        let data = buildMessage(level: level,
+                                message: message,
+                                metadata: metadata,
+                                file: file, function: function, line: line)
+
+        writeOrQueueMessage(to: stream, data)
     }
 }
