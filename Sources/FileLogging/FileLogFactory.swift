@@ -24,6 +24,12 @@ public class FileLogFactory {
 
     public convenience init(file: FilePath,
                             encoding: String.Encoding = FileLogFactory.defaultEncoding) {
+        // Ensure log files have the '.log' extension
+        // var file = file
+        // if (file.extension ?? "") != "log" {
+        //     file = FilePath("\(file.absolute?.string ?? file.string).log")
+        // }
+
         do {
             // Open the file for appending and create it if it doesn't exist
             try self.init(opened: file.open(mode: "a"), encoding: encoding)
