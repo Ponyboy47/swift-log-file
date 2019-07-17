@@ -2,102 +2,80 @@ import Foundation
 import Logging
 import TrailBlazer
 
-private let calendar = Calendar.current
+private var currentStreams = [AnyHashable: FileStream]()
 
-private func currentHour() -> Date {
-    return calendar.date(bySetting: .minute,
-                         value: 0,
-                         of: calendar.date(bySetting: .minute,
-                                           value: 0,
-                                           of: Date())!)!
+public protocol RotatingFileLogHandler: FileHandler, Hashable {
+    associatedtype RotateOptions: Hashable
+    /// The actual filepath where logs will be written to
+    var logFile: FilePath { get }
+    /// Options for determining when files should be rotated and the max number of files to keep around
+    var options: RotateOptions { get }
+    /// The maximum number of rotations to allow before deleting extras
+    var max: UInt? { get }
+
+    init(label: String, opened file: FileStream, encoding: String.Encoding, options: RotateOptions, max: UInt?)
+
+    func rotate(message data: Data) -> String?
+    func cleanup(max: UInt)
 }
 
-private var currentStreams = [RotatingFileLogHandler: (stream: FileStream, opened: Date)]()
-public struct RotatingFileLogHandler: FileHandler, Hashable {
-    private let basePath: FilePath
-    private let options: RotateOptions
-    /// The encoding to use when converting a String log message to bytes which can be written to the file
-    public var encoding: String.Encoding
-    /// The label for the handler
-    public let label: String
-    /// The minimum level allowed for levels to be written to file
-    public var logLevel = Logger.Level.info
-    /// Special Logger metadata
-    public var metadata = Logger.Metadata()
-
-    public init(label: String, opened file: FileStream, encoding: String.Encoding, options: RotateOptions) {
-        self.label = label
-        self.encoding = encoding
-        self.options = options
-        basePath = file.path
-        currentStreams[self] = (stream: file, opened: currentHour())
+extension RotatingFileLogHandler {
+    public var stream: FileStream? {
+        get { return currentStreams[AnyHashable(self)] }
+        nonmutating set { currentStreams[AnyHashable(self)] = newValue }
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(label)
-        hasher.combine(basePath)
+        hasher.combine(logFile)
     }
 
-    private func getStream(message: Data) -> FileStream {
-        var new: FileStream?
-        for option in options.storage.sorted() {
-            switch option.type {
-            case .date:
-                guard new == nil else { continue }
-                new = dateRotatedStream(max: option.value)
-            case .size:
-                guard new == nil else { continue }
-                new = sizeRotatedStream(message: message, max: option.value)
-            case .maxOverall:
-                guard new != nil else { continue }
-                maxFilesCleanup(max: option.value)
-            case .maxPerDatePeriod:
-                guard new != nil else { continue }
-                maxFilesPerPeriodCleanup(max: option.value)
-            case .none:
-                continue
-            }
+    /// Closes the current stream, rotates the file, then opens a new stream
+    private func rotateLog(to rotatedFilename: String) {
+        do {
+            try currentStreams[self]!.close()
+        } catch {
+            fatalError("Failed to close opened file stream to log \(logFile)")
         }
 
-        return newOrCurrentStream(new)
+        do {
+            var tmp = logFile
+            try tmp.rename(to: rotatedFilename)
+        } catch {
+            fatalError("Failed to rotate log file from \(logFile.lastComponent!) to \(rotatedFilename)")
+        }
+
+        do {
+            stream = try logFile.open(mode: "a")
+        } catch {
+            fatalError("Failed to open new log \(logFile)")
+        }
     }
-
-    private func newOrCurrentStream(_ new: FileStream?) -> FileStream {
-        guard let newStream = new else { return currentStreams[self]!.stream }
-
-        currentStreams[self] = (stream: newStream, opened: currentHour())
-        return newStream
-    }
-
-    private func dateRotatedStream(max hours: UInt64) -> FileStream? {
-        let openedAt = currentStreams[self]!.opened
-        // Make sure the time between the original opened hour and the current hour is greater than the allowed hours or
-        // just return nil
-        let distance = UInt64(calendar.dateComponents([.hour], from: openedAt, to: Date()).hour ?? 0)
-        guard distance >= hours else { return nil }
-
-        // rotate and return the newly opened stream
-    }
-
-    private func sizeRotatedStream(message: Data, max size: UInt64) -> FileStream? {
-        // Make sure the current file size + the new message would exceed the allowed size or just return nil
-        guard basePath.size + message.count >= size else { return nil }
-
-        // rotate and return the newly opened stream
-    }
-
-    private func maxFilesCleanup(max _: UInt64) {}
-
-    private func maxFilesPerPeriodCleanup(max _: UInt64) {}
 
     public func log(level: Logger.Level,
                     message: Logger.Message,
                     metadata: Logger.Metadata?,
                     file: String, function: String, line: UInt) {
-        let message = buildMessage(level: level,
-                                   message: message,
-                                   metadata: metadata,
-                                   file: file, function: function, line: line)
-        let stream = getStream(message: message)
+        let data = buildMessage(level: level,
+                                message: message,
+                                metadata: metadata,
+                                file: file, function: function, line: line)
+
+        if let newName = rotate(message: data) {
+            if let max = self.max {
+                cleanup(max: max)
+            }
+            rotateLog(to: newName)
+        }
+
+        guard let stream = self.stream else {
+            fatalError("No file stream opened for writing")
+        }
+
+        writeOrQueueMessage(to: stream, data)
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        return lhs.label == rhs.label && lhs.logFile == rhs.logFile && lhs.options == rhs.options && lhs.max == rhs.max
     }
 }

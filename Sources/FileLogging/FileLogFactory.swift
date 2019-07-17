@@ -78,18 +78,18 @@ public final class FileLogHandlerFactory: FileLogFactory {
     }
 }
 
-public final class RotatingLogHandlerFactory: FileLogFactory {
-    public var options: RotateOptions
-
-    public static var defaultRotateOptions: RotateOptions = [.date(.daily)]
+public final class RotatingLogHandlerFactory<Handler: RotatingFileLogHandler>: FileLogFactory {
+    public var options: Handler.RotateOptions
+    public var max: UInt?
 
     public convenience init(path: String,
                             encoding: String.Encoding = FileLogFactory.defaultEncoding,
-                            options: RotateOptions = RotatingLogHandlerFactory.defaultRotateOptions) {
+                            options: Handler.RotateOptions,
+                            max: UInt? = nil) {
         if let file = FilePath(path) {
-            self.init(file: file, encoding: encoding, options: options)
+            self.init(file: file, encoding: encoding, options: options, max: max)
         } else if let dir = DirectoryPath(path) {
-            self.init(directory: dir, encoding: encoding, options: options)
+            self.init(directory: dir, encoding: encoding, options: options, max: max)
         } else {
             fatalError("Path '\(path)' must be either a file, directory, or nonexistent path (treated as a new file)")
         }
@@ -97,10 +97,11 @@ public final class RotatingLogHandlerFactory: FileLogFactory {
 
     public convenience init(file: FilePath,
                             encoding: String.Encoding = FileLogFactory.defaultEncoding,
-                            options: RotateOptions = RotatingLogHandlerFactory.defaultRotateOptions) {
+                            options: Handler.RotateOptions,
+                            max: UInt? = nil) {
         do {
             // Open the file for appending and create it if it doesn't exist
-            try self.init(opened: file.open(mode: "a"), encoding: encoding, options: options)
+            try self.init(opened: file.open(mode: "a"), encoding: encoding, options: options, max: max)
         } catch {
             fatalError("Failed to open \(file) with error \(type(of: error)).\(error)")
         }
@@ -108,21 +109,25 @@ public final class RotatingLogHandlerFactory: FileLogFactory {
 
     public init(directory: DirectoryPath,
                 encoding: String.Encoding = FileLogFactory.defaultEncoding,
-                options: RotateOptions = RotatingLogHandlerFactory.defaultRotateOptions) {
+                options: Handler.RotateOptions,
+                max: UInt? = nil) {
         self.options = options
+        self.max = max
         super.init(directory: directory, encoding: encoding)
     }
 
     public init(opened file: FileStream,
                 encoding: String.Encoding = FileLogFactory.defaultEncoding,
-                options: RotateOptions = RotatingLogHandlerFactory.defaultRotateOptions) {
+                options: Handler.RotateOptions,
+                max: UInt? = nil) {
         self.options = options
+        self.max = max
         super.init(opened: file, encoding: encoding)
     }
 
-    public func makeRotatingFileLogHandler(label: String) -> RotatingFileLogHandler {
+    public func makeRotatingFileLogHandler(label: String) -> Handler {
         if let stream = self.stream {
-            return RotatingFileLogHandler(label: label, opened: stream, encoding: encoding, options: options)
+            return .init(label: label, opened: stream, encoding: encoding, options: options, max: max)
         }
 
         let path = parent! + "\(label).log"
@@ -131,7 +136,7 @@ public final class RotatingLogHandlerFactory: FileLogFactory {
         }
 
         if let stream = openedStreams.first(where: { $0.path == file }) {
-            return RotatingFileLogHandler(label: label, opened: stream, encoding: encoding, options: options)
+            return .init(label: label, opened: stream, encoding: encoding, options: options, max: max)
         }
 
         guard let stream = (try? file.open(mode: "a")) else {
@@ -140,6 +145,6 @@ public final class RotatingLogHandlerFactory: FileLogFactory {
 
         openedStreams.insert(stream)
 
-        return RotatingFileLogHandler(label: label, opened: stream, encoding: encoding, options: options)
+        return .init(label: label, opened: stream, encoding: encoding, options: options, max: max)
     }
 }
