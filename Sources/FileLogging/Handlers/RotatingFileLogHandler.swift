@@ -72,7 +72,11 @@ extension RotatingFileLogHandler {
             fatalError("No file stream opened for writing")
         }
 
-        writeOrQueueMessage(to: stream, data)
+        do {
+            try stream.write(data)
+        } catch {
+            fatalError("Failed to write log message")
+        }
     }
 
     public static func == (lhs: Self, rhs: Self) -> Bool {

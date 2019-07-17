@@ -2,47 +2,6 @@ import Foundation
 import Logging
 import TrailBlazer
 
-// Create a queue used to flush the buffers with the utility qos since that is good for system I/O taks
-private let bufferQueue = DispatchQueue(label: "com.ponyboy47.fileloghandler", qos: .utility)
-
-// A set of buffers that contains the stream and the messages to write to it
-// NOTE: This is global because the LogHandler is a struct and so a buffer variable could not be cannot be modified in
-// the log function
-private var loggingBuffers: [FileStream: [Data]] = [:]
-
-// Iterates through all the streams in the buffer and tries to flush all leftover messages, then schedules another
-// execution for 60 seconds after completion (assuming there are things that still failed to be flushed)
-private func flushBuffers() {
-    // Go through all the messages for all the streams in the buffer
-    for (stream, var messages) in loggingBuffers {
-        // Go through all the messages for the stream
-        var idx = 0
-        while idx < messages.count {
-            let message = messages[idx]
-            // If the message succeeds to be written, then remove it from the array of messages and don't increment the
-            // current index (since there's no need to)
-            guard (try? stream.write(message)) == nil else {
-                messages.remove(at: idx)
-                continue
-            }
-
-            // If the message failed again then leave it in the messages array and hop over it
-            idx += 1
-        }
-
-        // Update the current stream's messages array
-        loggingBuffers[stream] = messages
-    }
-
-    // Remove any streams that successfully flushed all of their messages
-    loggingBuffers = loggingBuffers.filter { !$0.value.isEmpty }
-
-    // Flush the buffers every 60 seconds until they're empty
-    if !loggingBuffers.isEmpty {
-        bufferQueue.asyncAfter(deadline: .now() + 60) { flushBuffers() }
-    }
-}
-
 // The formatter used for the timestamp when writing messages to the log file
 private let _formatter: DateFormatter = {
     let fmtr: DateFormatter = DateFormatter()
@@ -85,24 +44,6 @@ public extension FileHandler {
         return data
     }
 
-    internal func writeOrQueueMessage(to stream: FileStream, _ data: Data) {
-        let wasEmpty = loggingBuffers.isEmpty
-        if !loggingBuffers.keys.contains(stream) {
-            do {
-                try stream.write(data)
-            } catch {
-                loggingBuffers[stream] = [data]
-            }
-        } else {
-            loggingBuffers[stream]!.append(data)
-        }
-
-        // If the buffers were empty, but aren't any more then begin flushing them every 60 seconds
-        if wasEmpty, !loggingBuffers.isEmpty {
-            bufferQueue.asyncAfter(deadline: .now() + 60) { flushBuffers() }
-        }
-    }
-
     subscript(metadataKey metadataKey: String) -> Logger.Metadata.Value? {
         get { return metadata[metadataKey] }
         set { metadata[metadataKey] = newValue }
@@ -124,6 +65,10 @@ public extension ConstantStreamFileHandler {
                                 metadata: metadata,
                                 file: file, function: function, line: line)
 
-        writeOrQueueMessage(to: stream, data)
+        do {
+            try stream.write(data)
+        } catch {
+            fatalError("Failed to write log message")
+        }
     }
 }
