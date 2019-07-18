@@ -11,7 +11,13 @@ public struct SizeRotatingFileLogHandler: RotatingFileLogHandler {
     public var encoding: String.Encoding
     public let label: String
     public var logLevel = Logger.Level.info
-    public var metadata = Logger.Metadata()
+    public var prettyMetadata: String?
+    public var metadata = Logger.Metadata() {
+        didSet {
+            prettyMetadata = prettify(metadata)
+        }
+    }
+
     public let max: UInt?
 
     public init(label: String,

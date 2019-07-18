@@ -10,7 +10,13 @@ public struct DateRotatingFileLogHandler: RotatingFileLogHandler {
     public var encoding: String.Encoding
     public let label: String
     public var logLevel = Logger.Level.info
-    public var metadata = Logger.Metadata()
+    public var prettyMetadata: String?
+    public var metadata = Logger.Metadata() {
+        didSet {
+            prettyMetadata = prettify(metadata)
+        }
+    }
+
     private let formatter: DateFormatter
     private let range: DateRangeWrapper
     public let max: UInt?
