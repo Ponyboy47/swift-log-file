@@ -114,3 +114,6 @@ logger.info("Hello world!")
 - [ ] Don't use so many fatalErrors
 - [ ] Performance tests
 - [ ] Find some shorter names for things (RotatingFileLogHandlerFactory? And it requires a generic type?)
+
+## License
+MIT (c) 2019 Jacob Williams
