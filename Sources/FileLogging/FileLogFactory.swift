@@ -1,8 +1,10 @@
 import TrailBlazer
 
-var openedStreams: Set<FileStream> = []
+var unusedStreams = Set<FileStream>()
 
-public class FileLogFactory {
+// swiftlint:disable type_name
+public class _FileLogFactory {
+    // swiftlint:enable type_name
     fileprivate let parent: DirectoryPath?
     /// An opened file that can be written to
     fileprivate let stream: FileStream?
@@ -12,7 +14,7 @@ public class FileLogFactory {
     public static var defaultEncoding: String.Encoding = .utf8
 
     public convenience init(path: String,
-                            encoding: String.Encoding = FileLogFactory.defaultEncoding) {
+                            encoding: String.Encoding = _FileLogFactory.defaultEncoding) {
         if let file = FilePath(path) {
             self.init(file: file, encoding: encoding)
         } else if let dir = DirectoryPath(path) {
@@ -23,7 +25,7 @@ public class FileLogFactory {
     }
 
     public convenience init(file: FilePath,
-                            encoding: String.Encoding = FileLogFactory.defaultEncoding) {
+                            encoding: String.Encoding = _FileLogFactory.defaultEncoding) {
         // Ensure log files have the '.log' extension
         // var file = file
         // if (file.extension ?? "") != "log" {
@@ -33,30 +35,36 @@ public class FileLogFactory {
         do {
             // Open the file for appending and create it if it doesn't exist
             try self.init(opened: file.open(mode: "a"), encoding: encoding)
+            unusedStreams.insert(stream!)
         } catch {
             fatalError("Failed to open \(file) with error \(type(of: error)).\(error)")
         }
     }
 
     public init(directory: DirectoryPath,
-                encoding: String.Encoding = FileLogFactory.defaultEncoding) {
+                encoding: String.Encoding = _FileLogFactory.defaultEncoding) {
         parent = directory
         stream = nil
         self.encoding = encoding
     }
 
-    public init(opened file: FileStream,
-                encoding: String.Encoding = FileLogFactory.defaultEncoding) {
+    init(opened stream: FileStream,
+         encoding: String.Encoding = _FileLogFactory.defaultEncoding) {
         parent = nil
-        stream = file
+        self.stream = stream
         self.encoding = encoding
+    }
+
+    deinit {
+        unusedStreams.forEach { try? $0.close() }
+        currentStreams.forEach { try? $0.value.close() }
     }
 }
 
-public final class FileLogHandlerFactory: FileLogFactory {
+public final class FileLogHandlerFactory: _FileLogFactory {
     public func makeFileLogHandler(label: String) -> FileLogHandler {
-        if let stream = self.stream {
-            return FileLogHandler(label: label, opened: stream, encoding: encoding)
+        guard stream == nil else {
+            return .init(label: label, opened: stream!, encoding: encoding)
         }
 
         let path = parent! + "\(label).log"
@@ -64,26 +72,22 @@ public final class FileLogHandlerFactory: FileLogFactory {
             fatalError("Path '\(path.string)' exists and is not a file")
         }
 
-        if let stream = openedStreams.first(where: { $0.path == file }) {
-            return FileLogHandler(label: label, opened: stream, encoding: encoding)
+        do {
+            let stream = try file.open(mode: "a")
+            unusedStreams.insert(stream)
+            return .init(label: label, opened: stream, encoding: encoding)
+        } catch {
+            fatalError("Failed to open \(file) for appending")
         }
-
-        guard let stream = (try? file.open(mode: "a")) else {
-            fatalError("")
-        }
-
-        openedStreams.insert(stream)
-
-        return FileLogHandler(label: label, opened: stream, encoding: encoding)
     }
 }
 
-public final class RotatingLogHandlerFactory<Handler: RotatingFileLogHandler>: FileLogFactory {
+public final class RotatingLogHandlerFactory<Handler: RotatingFileLogHandler>: _FileLogFactory {
     public var options: Handler.RotateOptions
     public var max: UInt?
 
     public convenience init(path: String,
-                            encoding: String.Encoding = FileLogFactory.defaultEncoding,
+                            encoding: String.Encoding = _FileLogFactory.defaultEncoding,
                             options: Handler.RotateOptions,
                             max: UInt? = nil) {
         if let file = FilePath(path) {
@@ -96,19 +100,20 @@ public final class RotatingLogHandlerFactory<Handler: RotatingFileLogHandler>: F
     }
 
     public convenience init(file: FilePath,
-                            encoding: String.Encoding = FileLogFactory.defaultEncoding,
+                            encoding: String.Encoding = _FileLogFactory.defaultEncoding,
                             options: Handler.RotateOptions,
                             max: UInt? = nil) {
         do {
             // Open the file for appending and create it if it doesn't exist
             try self.init(opened: file.open(mode: "a"), encoding: encoding, options: options, max: max)
+            unusedStreams.insert(stream!)
         } catch {
             fatalError("Failed to open \(file) with error \(type(of: error)).\(error)")
         }
     }
 
     public init(directory: DirectoryPath,
-                encoding: String.Encoding = FileLogFactory.defaultEncoding,
+                encoding: String.Encoding = _FileLogFactory.defaultEncoding,
                 options: Handler.RotateOptions,
                 max: UInt? = nil) {
         self.options = options
@@ -116,18 +121,18 @@ public final class RotatingLogHandlerFactory<Handler: RotatingFileLogHandler>: F
         super.init(directory: directory, encoding: encoding)
     }
 
-    public init(opened file: FileStream,
-                encoding: String.Encoding = FileLogFactory.defaultEncoding,
-                options: Handler.RotateOptions,
-                max: UInt? = nil) {
+    init(opened stream: FileStream,
+         encoding: String.Encoding = _FileLogFactory.defaultEncoding,
+         options: Handler.RotateOptions,
+         max: UInt? = nil) {
         self.options = options
         self.max = max
-        super.init(opened: file, encoding: encoding)
+        super.init(opened: stream, encoding: encoding)
     }
 
     public func makeRotatingFileLogHandler(label: String) -> Handler {
-        if let stream = self.stream {
-            return .init(label: label, opened: stream, encoding: encoding, options: options, max: max)
+        guard stream == nil else {
+            return .init(label: label, opened: stream!, encoding: encoding, options: options, max: max)
         }
 
         let path = parent! + "\(label).log"
@@ -135,16 +140,12 @@ public final class RotatingLogHandlerFactory<Handler: RotatingFileLogHandler>: F
             fatalError("Path '\(path.string)' exists and is not a file")
         }
 
-        if let stream = openedStreams.first(where: { $0.path == file }) {
+        do {
+            let stream = try file.open(mode: "a")
+            unusedStreams.insert(stream)
             return .init(label: label, opened: stream, encoding: encoding, options: options, max: max)
+        } catch {
+            fatalError("Failed to open \(file) for appending")
         }
-
-        guard let stream = (try? file.open(mode: "a")) else {
-            fatalError("")
-        }
-
-        openedStreams.insert(stream)
-
-        return .init(label: label, opened: stream, encoding: encoding, options: options, max: max)
     }
 }

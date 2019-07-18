@@ -2,7 +2,7 @@ import Foundation
 import Logging
 import TrailBlazer
 
-private var currentStreams = [AnyHashable: FileStream]()
+var currentStreams = [AnyHashable: FileStream]()
 
 public protocol RotatingFileLogHandler: FileHandler, Hashable {
     associatedtype RotateOptions: Hashable
@@ -21,8 +21,13 @@ public protocol RotatingFileLogHandler: FileHandler, Hashable {
 
 extension RotatingFileLogHandler {
     public var stream: FileStream? {
-        get { return currentStreams[AnyHashable(self)] }
-        nonmutating set { currentStreams[AnyHashable(self)] = newValue }
+        get { return currentStreams[self] }
+        nonmutating set {
+            currentStreams[self] = newValue
+            if let stream = newValue {
+                unusedStreams.remove(stream)
+            }
+        }
     }
 
     public func hash(into hasher: inout Hasher) {

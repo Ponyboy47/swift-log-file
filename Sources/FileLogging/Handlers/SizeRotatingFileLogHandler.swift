@@ -21,7 +21,7 @@ public struct SizeRotatingFileLogHandler: RotatingFileLogHandler {
     public let max: UInt?
 
     public init(label: String,
-                opened file: FileStream,
+                opened stream: FileStream,
                 encoding: String.Encoding,
                 options: UInt64,
                 max: UInt? = nil) {
@@ -29,12 +29,14 @@ public struct SizeRotatingFileLogHandler: RotatingFileLogHandler {
         self.encoding = encoding
         self.options = options
         self.max = max
-        let path = file.path.absolute ?? file.path
+        let path = stream.path.absolute ?? stream.path
         logFile = path
         let ext = path.extension ?? ""
         fileExtension = ext.isEmpty ? "" : ".\(ext)"
         filename = String((path.lastComponent !! "Found empty path").dropLast(fileExtension.count))
-        stream = file
+        self.stream = stream
+        unusedStreams.remove(stream)
+        currentStreams[self] = stream
     }
 
     public func rotate(message: Data) -> String? {
