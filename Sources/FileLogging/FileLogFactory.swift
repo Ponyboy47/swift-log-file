@@ -5,8 +5,10 @@ var unusedStreams = Set<FileStream>()
 // swiftlint:disable type_name
 public class _FileLogFactory {
     // swiftlint:enable type_name
+
+    /// The parent directory in which log files will be written by their label name
     fileprivate let parent: DirectoryPath?
-    /// An opened file that can be written to
+    /// An opened file that can be written to which should use line buffered writes
     fileprivate let stream: FileStream?
     /// The encoding to use when converting a String log message to bytes which can be written to the file
     public var encoding: String.Encoding
@@ -93,7 +95,7 @@ public final class FileLogHandlerFactory: _FileLogFactory {
     }
 }
 
-public final class RotatingLogHandlerFactory<Handler: RotatingFileLogHandler>: _FileLogFactory {
+public final class RotatingFileLogHandlerFactory<Handler: RotatingFileLogHandler>: _FileLogFactory {
     public var options: Handler.RotateOptions
     public var max: UInt?
 
