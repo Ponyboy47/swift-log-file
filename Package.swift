@@ -22,6 +22,6 @@ let package = Package(
             dependencies: ["Logging", "TrailBlazer"]),
         .testTarget(
             name: "FileLoggingTests",
-            dependencies: ["FileLogging"])
+            dependencies: ["FileLogging", "Logging", "TrailBlazer"])
     ]
 )
