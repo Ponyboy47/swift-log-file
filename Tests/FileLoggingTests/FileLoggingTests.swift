@@ -19,11 +19,11 @@ final class FileLoggingTests: XCTestCase {
         }
 
         XCTAssertTrue(logFile.size > startSize)
-        XCTAssertNoThrow(try logFile.delete())
+        try? logFile.delete()
     }
 
     func testHammerRotating() {
-        var logFile = FilePath("/tmp/test.log")!
+        let logFile = FilePath("/tmp/test.log")!
 
         let factory = RotatingFileLogHandlerFactory<DateRotatingFileLogHandler>(file: logFile, options: 9.seconds)
         LoggingSystem.bootstrap(factory.makeRotatingFileLogHandler)
@@ -32,6 +32,10 @@ final class FileLoggingTests: XCTestCase {
         let end = Date() + 30
         while Date() < end {
             logger.info("Test message")
+        }
+        (try? glob(pattern: "/tmp/test*.log"))?.matches.files.forEach { log in
+            var log = log
+            try? log.delete()
         }
     }
 
