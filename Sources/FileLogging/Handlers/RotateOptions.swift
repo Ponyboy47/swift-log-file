@@ -84,10 +84,10 @@ public enum DateRotateOption: Hashable {
 
     var format: String {
         switch self {
-        case .seconds: return "yyyy-mm-dd:HH:MM:SS"
-        case .minutes, .hours: return "yyyy-mm-dd:HH:MM"
-        case .days, .weeks: return "yyyy-mm-dd"
-        case .months: return "yyyy-mm"
+        case .seconds: return "yyyy-MM-dd:HH:mm:ss"
+        case .minutes, .hours: return "yyyy-mm-dd:HH:mm"
+        case .days, .weeks: return "yyyy-MM-dd"
+        case .months: return "yyyy-MM"
         case .years: return "yyyy"
         }
     }
