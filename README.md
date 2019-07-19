@@ -114,6 +114,7 @@ logger.info("Hello world!")
 - [ ] Don't use so many fatalErrors
 - [ ] Performance tests
 - [ ] Find some shorter names for things (RotatingFileLogHandlerFactory? And it requires a generic type?)
+- [ ] Allow customizing the datetime format printed in the logs
 
 ## License
 MIT (c) 2019 Jacob Williams
