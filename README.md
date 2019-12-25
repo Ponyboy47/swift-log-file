@@ -113,6 +113,7 @@ logger.info("Hello world!")
 - [ ] Track when we were passed FileStreams directly so we know not to close them explicitly
 - [ ] Don't use so many fatalErrors
 - [ ] Performance tests
+  - [ ] `Date` vs `TimeInterval` (`Date` vs `Double` comparisons/calculations)
 - [ ] Find some shorter names for things (RotatingFileLogHandlerFactory? And it requires a generic type?)
 - [ ] Allow customizing the datetime format printed in the logs
 
