@@ -41,7 +41,7 @@ public struct SizeRotatingFileLogHandler: RotatingFileLogHandler {
 
     public func rotate(message: Data) -> String? {
         let msgSize = message.count
-        guard logFile.size + msgSize > maxSize else { return nil }
+        guard logFile.size + Int64(msgSize) > maxSize else { return nil }
 
         guard msgSize <= maxSize else {
             fatalError("Message is larger than maximum byte size allowed per file rotation (\(msgSize) > \(maxSize))")

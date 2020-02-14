@@ -16,17 +16,6 @@ public class _FileLogFactory {
     /// The encoding to default to when creating file-based logs from a factory
     public static var defaultEncoding: String.Encoding = .utf8
 
-    public convenience init(path: String,
-                            encoding: String.Encoding = _FileLogFactory.defaultEncoding) {
-        if let file = FilePath(path) {
-            self.init(file: file, encoding: encoding)
-        } else if let dir = DirectoryPath(path) {
-            self.init(directory: dir, encoding: encoding)
-        } else {
-            fatalError("Path '\(path)' must be either a file, directory, or nonexistent path (treated as a new file)")
-        }
-    }
-
     public convenience init(file: FilePath,
                             encoding: String.Encoding = _FileLogFactory.defaultEncoding) {
         // Ensure log files have the '.log' extension
@@ -76,9 +65,7 @@ public final class FileLogHandlerFactory: _FileLogFactory {
         }
 
         let path = parent! + "\(label).log"
-        guard let file = FilePath(path.absolute ?? path) else {
-            fatalError("Path '\(path.string)' exists and is not a file")
-        }
+        let file = FilePath(path.absolute ?? path)
 
         do {
             let stream = try file.open(mode: "a")
@@ -98,19 +85,6 @@ public final class FileLogHandlerFactory: _FileLogFactory {
 public final class RotatingFileLogHandlerFactory<Handler: RotatingFileLogHandler>: _FileLogFactory {
     public var options: Handler.RotateOptions
     public var max: UInt?
-
-    public convenience init(path: String,
-                            encoding: String.Encoding = _FileLogFactory.defaultEncoding,
-                            options: Handler.RotateOptions,
-                            max: UInt? = nil) {
-        if let file = FilePath(path) {
-            self.init(file: file, encoding: encoding, options: options, max: max)
-        } else if let dir = DirectoryPath(path) {
-            self.init(directory: dir, encoding: encoding, options: options, max: max)
-        } else {
-            fatalError("Path '\(path)' must be either a file, directory, or nonexistent path (treated as a new file)")
-        }
-    }
 
     public convenience init(file: FilePath,
                             encoding: String.Encoding = _FileLogFactory.defaultEncoding,
@@ -148,9 +122,7 @@ public final class RotatingFileLogHandlerFactory<Handler: RotatingFileLogHandler
         }
 
         let path = parent! + "\(label).log"
-        guard let file = FilePath(path.absolute ?? path) else {
-            fatalError("Path '\(path.string)' exists and is not a file")
-        }
+        let file = FilePath(path.absolute ?? path)
 
         do {
             let stream = try file.open(mode: "a")

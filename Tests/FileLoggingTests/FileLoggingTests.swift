@@ -6,7 +6,7 @@ import XCTest
 
 final class FileLoggingTests: XCTestCase {
     func testHammer() {
-        var logFile = FilePath("/tmp/test.log")!
+        var logFile = FilePath("/tmp/test.log")
 
         let factory = FileLogHandlerFactory(file: logFile)
         LoggingSystem.bootstrap(factory.makeFileLogHandler)
@@ -23,7 +23,7 @@ final class FileLoggingTests: XCTestCase {
     }
 
     func testHammerRotating() {
-        let logFile = FilePath("/tmp/test.log")!
+        let logFile = FilePath("/tmp/test.log")
 
         let factory = RotatingFileLogHandlerFactory<DateRotatingFileLogHandler>(file: logFile, options: 9.seconds)
         LoggingSystem.bootstrap(factory.makeRotatingFileLogHandler)
