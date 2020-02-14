@@ -1,5 +1,5 @@
 import Logging
-import TrailBlazer
+import Pathman
 
 public struct FileLogHandler: ConstantStreamFileHandler {
     public let stream: FileStream

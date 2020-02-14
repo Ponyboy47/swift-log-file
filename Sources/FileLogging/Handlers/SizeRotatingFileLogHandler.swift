@@ -1,6 +1,6 @@
 import Foundation
 import Logging
-import TrailBlazer
+import Pathman
 
 public struct SizeRotatingFileLogHandler: RotatingFileLogHandler {
     private let filename: String

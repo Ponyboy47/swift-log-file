@@ -1,7 +1,7 @@
 @testable import FileLogging
 import Foundation
 import Logging
-import TrailBlazer
+import Pathman
 import XCTest
 
 final class FileLoggingTests: XCTestCase {
