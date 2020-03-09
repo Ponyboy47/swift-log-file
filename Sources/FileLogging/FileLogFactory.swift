@@ -59,7 +59,7 @@ public class _FileLogFactory {
 }
 
 public final class FileLogHandlerFactory: _FileLogFactory {
-    public func makeFileLogHandler(label: String) -> FileLogHandler {
+    public func makeFileLogHandler(label: String) -> FileLogHandler? {
         guard stream == nil else {
             return .init(label: label, opened: stream!, encoding: encoding)
         }
@@ -77,7 +77,7 @@ public final class FileLogHandlerFactory: _FileLogFactory {
             }
             return .init(label: label, opened: stream, encoding: encoding)
         } catch {
-            fatalError("Failed to open \(file) for appending")
+            return nil
         }
     }
 }
