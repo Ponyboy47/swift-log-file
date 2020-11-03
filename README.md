@@ -8,7 +8,7 @@ It is an implementation of a [`LogHandler`](https://github.com/apple/swift-log#o
 
 Add the following dependency in your Package.swift
 ```swift
-.package(url: "https://github.com/Ponyboy47/swift-log-file.git", .branch("master"))
+.package(url: "https://github.com/Ponyboy47/swift-log-file.git", from: "0.2.0")
 ```
 
 ## Usage
