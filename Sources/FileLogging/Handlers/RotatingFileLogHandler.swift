@@ -1,6 +1,6 @@
 import Foundation
 import Logging
-import TrailBlazer
+import Pathman
 
 var currentStreams = [AnyHashable: FileStream]()
 

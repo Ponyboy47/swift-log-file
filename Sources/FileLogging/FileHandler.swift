@@ -1,6 +1,6 @@
 import Foundation
 import Logging
-import TrailBlazer
+import Pathman
 
 // The formatter used for the timestamp when writing messages to the log file
 private let _formatter: DateFormatter = {
